@@ -1,0 +1,22 @@
+{
+  "Low": {
+    "hours": 24,
+    "description": "Minor issues with limited operational impact. Can be addressed during standard working hours.",
+    "priority": 1
+  },
+  "Medium": {
+    "hours": 12,
+    "description": "Notable issues affecting service quality. Should be resolved within same day.",
+    "priority": 2
+  },
+  "High": {
+    "hours": 6,
+    "description": "Major issues impacting critical services. Requires expedited response.",
+    "priority": 3
+  },
+  "Critical": {
+    "hours": 1,
+    "description": "Severe infrastructure failure causing significant public safety concerns. Immediate action required.",
+    "priority": 4
+  }
+}
