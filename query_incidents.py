@@ -49,10 +49,11 @@ def parse_args():
 
 def load_incidents_data() -> pd.DataFrame:
     """
-    Load incidents data from Excel and prepare for analysis
+    Load incidents data from Excel and prepare for analysis.
+    Optimized to load only necessary columns and parse dates efficiently.
     
     Returns:
-        DataFrame containing incident data with calculated fields
+        DataFrame containing clean incident data with calculated fields
     """
     incident_file = 'data/incidents.xlsx'
     
@@ -62,8 +63,22 @@ def load_incidents_data() -> pd.DataFrame:
         sys.exit(1)
     
     try:
-        # Load the data
-        df = pd.read_excel(incident_file)
+        # Define only the columns we need to load
+        necessary_columns = [
+            'Incident ID', 'Asset ID', 'Type', 'Severity', 
+            'Reported At', 'SLA Deadline', 'Status'
+        ]
+        
+        # Define date columns to parse during loading
+        date_columns = ['Reported At', 'SLA Deadline']
+        
+        # Load the data with optimizations
+        df = pd.read_excel(
+            incident_file,
+            usecols=necessary_columns,
+            parse_dates=date_columns,
+            engine='openpyxl'  # Most reliable engine for complex Excel files
+        )
         
         # Handle empty dataframe
         if df.empty:
@@ -71,19 +86,53 @@ def load_incidents_data() -> pd.DataFrame:
             print("No incidents found in the database.")
             sys.exit(0)
         
-        # Convert date columns to datetime if they're not already
-        for col in ['Reported At', 'SLA Deadline']:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce')
+        # Store original row count for reporting
+        original_count = len(df)
         
-        # Calculate elapsed hours if not already present
-        if 'Elapsed Hours' not in df.columns or df['Elapsed Hours'].isna().all():
-            current_time = datetime.datetime.now()
-            df['Elapsed Hours'] = (current_time - df['Reported At']).dt.total_seconds() / 3600
+        # Check for missing or invalid date values after parsing
+        invalid_dates = {}
+        for col in date_columns:
+            invalid_mask = df[col].isna()
+            invalid_count = invalid_mask.sum()
+            if invalid_count > 0:
+                invalid_dates[col] = invalid_count
+                logger.warning(f"Found {invalid_count} rows with invalid or missing '{col}' values")
         
-        # Determine SLA compliance
-        df['Is Overdue'] = df['Elapsed Hours'] > (df['SLA Deadline'] - df['Reported At']).dt.total_seconds() / 3600
+        # If any date columns have invalid values, log details and exclude rows
+        if sum(invalid_dates.values()) > 0:
+            # Identify rows with any invalid date
+            invalid_mask = df[date_columns].isna().any(axis=1)
+            invalid_rows_count = invalid_mask.sum()
+            
+            if invalid_rows_count > 0:
+                # Log affected incident IDs
+                affected_ids = df.loc[invalid_mask, 'Incident ID'].tolist()
+                logger.warning(f"Excluding {invalid_rows_count} rows with invalid dates. Affected IDs: {affected_ids[:10]}" + 
+                              (f"... and {len(affected_ids)-10} more" if len(affected_ids) > 10 else ""))
+                
+                # Drop rows with invalid dates
+                df = df.loc[~invalid_mask].copy()
+                print(f"Excluded {invalid_rows_count} incidents with invalid date values from analysis")
+        
+        # Calculate elapsed hours efficiently using vectorized operations
+        current_time = pd.Timestamp.now()
+        df['Elapsed Hours'] = (current_time - df['Reported At']).dt.total_seconds() / 3600
+        
+        # Calculate SLA hours (time difference between deadline and reported time)
+        df['SLA Hours'] = (df['SLA Deadline'] - df['Reported At']).dt.total_seconds() / 3600
+        
+        # Determine SLA compliance using vectorized operations
+        df['Is Overdue'] = (df['Elapsed Hours'] > df['SLA Hours']) & (df['Status'] != 'Closed')
         df['SLA Compliant'] = ~df['Is Overdue'] | (df['Status'] == 'Closed')
+        
+        # Drop the temporary column if not needed for reporting
+        if 'SLA Hours' not in necessary_columns:
+            df = df.drop(columns=['SLA Hours'])
+        
+        # Log summary of data loading process
+        records_excluded = original_count - len(df)
+        logger.info(f"Successfully loaded {len(df)} incidents" + 
+                   (f" (excluded {records_excluded} invalid records)" if records_excluded > 0 else ""))
         
         return df
         
