@@ -1,0 +1,49 @@
+{
+  "Road": [
+    "ID", 
+    "Location", 
+    "Length (m)", 
+    "Width (m)", 
+    "Surface Type", 
+    "Condition", 
+    "Last Maintenance", 
+    "Next Maintenance Due", 
+    "Notes"
+  ],
+  "Park": [
+    "ID", 
+    "Name", 
+    "Location", 
+    "Area (sq m)", 
+    "Facilities", 
+    "Condition", 
+    "Last Maintenance", 
+    "Next Maintenance Due", 
+    "Notes"
+  ],
+  "Bridge": [
+    "ID", 
+    "Location", 
+    "Type", 
+    "Length (m)", 
+    "Width (m)", 
+    "Load Capacity (tons)", 
+    "Year Built", 
+    "Condition", 
+    "Last Inspection", 
+    "Next Inspection Due", 
+    "Notes"
+  ],
+  "Streetlight": [
+    "ID", 
+    "Location", 
+    "Type", 
+    "Height (m)", 
+    "Wattage", 
+    "Installation Date", 
+    "Condition", 
+    "Last Maintenance", 
+    "Next Maintenance Due", 
+    "Notes"
+  ]
+}
