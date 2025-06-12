@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contractor Schema",
+  "description": "Schema for contractor data in CityInfraXLS",
+  "type": "object",
+  "properties": {
+    "contractor_id": {
+      "type": "string",
+      "description": "Unique identifier for the contractor"
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name of the contractor company"
+    },
+    "specialties": {
+      "type": "array",
+      "description": "Areas of expertise for the contractor",
+      "items": {
+        "type": "string"
+      }
+    },
+    "regions": {
+      "type": "array",
+      "description": "Geographic regions where the contractor operates",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rating": {
+      "type": "number",
+      "description": "Performance rating of the contractor (0-5)",
+      "minimum": 0,
+      "maximum": 5
+    }
+  },
+  "required": ["contractor_id", "name", "specialties", "regions", "rating"],
+  "additionalProperties": false
+}
