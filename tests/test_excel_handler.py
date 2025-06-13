@@ -131,3 +131,50 @@ def test_create_tasks_sheet(tmp_path):
     create_tasks_sheet(output_path=path)
     df = pd.read_excel(path, sheet_name="tasks")
     assert list(df.columns) == ["Task ID", "Incident ID", "Contractor ID", "Assigned At", "Status", "Details"]
+
+
+from utils.excel_handler import create_maintenance_history_sheet
+
+@pytest.fixture
+def sample_maintenance_schema(tmp_path):
+    schema = {
+        "properties": {
+            "Record ID": {"type": "string"},
+            "Equipment ID": {"type": "string"},
+            "Maintenance Date": {"type": "string"},
+            "Technician": {"type": "string"},
+            "Notes": {"type": "string"},
+            "Cost": {"type": "number"}
+        }
+    }
+    schema_file = tmp_path / "maintenance_schema.json"
+    schema_file.write_text(json.dumps(schema))
+    return tmp_path, schema
+
+def test_create_maintenance_history_sheet_success(tmp_path, sample_maintenance_schema, monkeypatch):
+    # Arrange: write schema into a temp cwd
+    schema_dir, expected_schema = sample_maintenance_schema
+    monkeypatch.chdir(schema_dir)
+    output_path = tmp_path / "maintenance.xlsx"
+
+    # Act
+    result = create_maintenance_history_sheet(path=str(output_path))
+
+    # Assert
+    assert result is True
+    assert output_path.exists()
+    df = pd.read_excel(output_path, sheet_name="Maintenance History")
+    assert list(df.columns) == list(expected_schema["properties"].keys())
+
+def test_create_maintenance_history_sheet_missing_schema(tmp_path, monkeypatch):
+    # Arrange: no maintenance_schema.json in cwd
+    monkeypatch.chdir(tmp_path)
+    output_path = tmp_path / "maintenance.xlsx"
+
+    # Act
+    result = create_maintenance_history_sheet(path=str(output_path))
+
+    # Assert
+    assert result is False
+    # output file should not exist on failure
+    assert not output_path.exists()

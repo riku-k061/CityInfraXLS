@@ -5,6 +5,7 @@ import json
 import logging
 import pandas as pd
 from openpyxl import Workbook, load_workbook as openpyxl_load
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Configure basic logging
 logging.basicConfig(
@@ -132,3 +133,46 @@ def create_tasks_sheet(output_path="data/tasks.xlsx", sheet_name="tasks"):
     # Save empty DataFrame to Excel
     df.to_excel(output_path, index=False, sheet_name=sheet_name)
     print(f"Created {output_path} with columns: {', '.join(columns)}")
+
+def create_maintenance_history_sheet(path='data/maintenance_history.xlsx'):
+    """
+    Create a new maintenance history Excel sheet with headers based on the maintenance schema.
+    
+    Args:
+        path (str): Path to the Excel file to create or update
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Load the maintenance schema to get the headers
+        with open('maintenance_schema.json', 'r') as schema_file:
+            schema = json.load(schema_file)
+        
+        # Extract the properties to use as headers
+        headers = list(schema['properties'].keys())
+        
+        # Create a new DataFrame with the headers but no data
+        df = pd.DataFrame(columns=headers)
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Create a new workbook
+        wb = Workbook()
+        # Get the active worksheet and rename it
+        ws = wb.active
+        ws.title = "Maintenance History"
+        
+        # Add headers to the sheet
+        for row in dataframe_to_rows(df, index=False, header=True):
+            ws.append(row)
+        
+        # Save the workbook
+        wb.save(path)
+        print(f"Successfully created maintenance history sheet at {path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error creating maintenance history sheet: {e}")
+        return False
