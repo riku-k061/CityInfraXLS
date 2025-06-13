@@ -4,3 +4,5 @@ tabulate
 pytest
 matplotlib
 numpy
+jsonschema
+tabulate
