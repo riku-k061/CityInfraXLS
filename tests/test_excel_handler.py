@@ -1,17 +1,27 @@
 import os
+import sys
 import json
 import pytest
+import pandas as pd
 from openpyxl import Workbook
-from utils.excel_handler import load_workbook, save_workbook, init_workbook, create_sheets_from_schema
+
+# Add parent directory to sys.path to import utils module
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "utils/..")))
+
+from utils.excel_handler import (
+    load_workbook,
+    save_workbook,
+    init_workbook,
+    create_sheets_from_schema,
+    create_tasks_sheet
+)
 
 @pytest.fixture
 def sample_headers():
-    """Sample headers for testing"""
     return ["ID", "Name", "Location", "Status", "Last Updated"]
 
 @pytest.fixture
 def sample_schema():
-    """Sample schema for testing sheet creation"""
     return {
         "Road": ["ID", "Name", "Location", "Length", "Width", "Surface Type", "Condition", "Installation Date"],
         "Bridge": ["ID", "Name", "Location", "Length", "Width", "Material", "Condition", "Installation Date"],
@@ -20,228 +30,151 @@ def sample_schema():
 
 @pytest.fixture
 def schema_file(tmp_path, sample_schema):
-    """Create a temporary schema file"""
     schema_path = tmp_path / "test_schema.json"
     with open(schema_path, "w") as f:
         json.dump(sample_schema, f)
     return schema_path
 
+@pytest.fixture
+def sample_json_schema():
+    return {
+        "properties": {
+            "Contractor ID": {"type": "string"},
+            "Name": {"type": "string"},
+            "Specialties": {"type": "array"},
+            "Regions": {"type": "array"},
+            "Rating": {"type": "number"}
+        }
+    }
+
+@pytest.fixture
+def json_schema_file(tmp_path, sample_json_schema):
+    schema_path = tmp_path / "contractors_schema.json"
+    with open(schema_path, "w") as f:
+        json.dump(sample_json_schema, f)
+    return schema_path
+
+# --- Legacy tests for classic workbook operations ---
+
 def test_init_workbook_creates_new(tmp_path, sample_headers):
-    """Test init_workbook creates a new workbook with correct headers"""
-    # Setup
-    test_path = tmp_path / "test_new.xlsx"
-    
-    # Execute
-    wb = init_workbook(test_path, sample_headers)
-    
-    # Verify
-    assert os.path.exists(test_path)
-    
-    # Check headers
-    ws = wb.active
-    for col_idx, header in enumerate(sample_headers, start=1):
-        assert ws.cell(row=1, column=col_idx).value == header
-    
-    # Close workbook
+    path = tmp_path / "new.xlsx"
+    wb = init_workbook(path, sample_headers)
+    assert os.path.exists(path)
+    for i, header in enumerate(sample_headers, start=1):
+        assert wb.active.cell(row=1, column=i).value == header
     wb.close()
 
 def test_init_workbook_reuses_existing(tmp_path, sample_headers):
-    """Test init_workbook reuses an existing workbook"""
-    # Setup - create initial workbook
-    test_path = tmp_path / "test_reuse.xlsx"
-    wb1 = init_workbook(test_path, sample_headers)
-    
-    # Add some data to distinguish it
-    ws1 = wb1.active
-    ws1.cell(row=2, column=1, value="TEST_DATA")
-    wb1.save(test_path)
+    path = tmp_path / "reuse.xlsx"
+    wb1 = init_workbook(path, sample_headers)
+    wb1.active.cell(row=2, column=1, value="EXISTING")
+    wb1.save(path)
     wb1.close()
-    
-    # Execute - call init_workbook again
-    wb2 = init_workbook(test_path, sample_headers)
-    
-    # Verify it's the same file with our test data
-    ws2 = wb2.active
-    assert ws2.cell(row=2, column=1).value == "TEST_DATA"
-    
-    # Close workbook
+
+    wb2 = init_workbook(path, sample_headers)
+    assert wb2.active.cell(row=2, column=1).value == "EXISTING"
     wb2.close()
 
 def test_load_workbook_existing(tmp_path):
-    """Test loading an existing workbook"""
-    # Setup - create a test workbook
-    test_path = tmp_path / "test_load.xlsx"
-    wb_original = Workbook()
-    ws = wb_original.active
-    ws.cell(row=1, column=1, value="TEST_HEADER")
-    ws.cell(row=2, column=1, value="TEST_VALUE")
-    wb_original.save(test_path)
-    wb_original.close()
-    
-    # Execute
-    wb_loaded = load_workbook(test_path)
-    
-    # Verify
-    ws_loaded = wb_loaded.active
-    assert ws_loaded.cell(row=1, column=1).value == "TEST_HEADER"
-    assert ws_loaded.cell(row=2, column=1).value == "TEST_VALUE"
-    
-    # Close workbook
-    wb_loaded.close()
+    path = tmp_path / "load.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.cell(row=1, column=1, value="HEADER")
+    ws.cell(row=2, column=1, value="DATA")
+    wb.save(path)
+    wb.close()
+
+    loaded = load_workbook(path)
+    ws_loaded = loaded.active
+    assert ws_loaded.cell(row=1, column=1).value == "HEADER"
+    assert ws_loaded.cell(row=2, column=1).value == "DATA"
+    loaded.close()
 
 def test_load_workbook_missing(tmp_path):
-    """Test load_workbook raises when file is missing"""
-    # Setup
-    nonexistent_path = tmp_path / "nonexistent.xlsx"
-    
-    # Execute and verify
     with pytest.raises(Exception):
-        load_workbook(nonexistent_path)
+        load_workbook(tmp_path / "nope.xlsx")
 
 def test_save_workbook_roundtrip(tmp_path):
-    """Test save_workbook by round-tripping a workbook"""
-    # Setup
-    test_path = tmp_path / "test_save.xlsx"
-    wb_original = Workbook()
-    ws = wb_original.active
-    ws.cell(row=1, column=1, value="ORIGINAL")
-    
-    # Execute - save the workbook
-    save_workbook(wb_original, test_path)
-    wb_original.close()
-    
-    # Load it back
-    wb_loaded = load_workbook(test_path)
-    ws_loaded = wb_loaded.active
-    
-    # Verify original data
-    assert ws_loaded.cell(row=1, column=1).value == "ORIGINAL"
-    
-    # Modify and save again
-    ws_loaded.cell(row=1, column=1, value="MODIFIED")
-    ws_loaded.cell(row=2, column=1, value="NEW_ROW")
-    save_workbook(wb_loaded, test_path)
-    wb_loaded.close()
-    
-    # Load again and verify changes
-    wb_final = load_workbook(test_path)
-    ws_final = wb_final.active
-    assert ws_final.cell(row=1, column=1).value == "MODIFIED"
-    assert ws_final.cell(row=2, column=1).value == "NEW_ROW"
-    
-    # Close workbook
-    wb_final.close()
+    path = tmp_path / "roundtrip.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.cell(row=1, column=1, value="SAVE")
+    save_workbook(wb, path)
+    wb.close()
 
-def test_create_sheets_from_schema_new(tmp_path, schema_file, sample_schema):
-    """Test create_sheets_from_schema creating a new workbook"""
-    # Setup
-    test_path = tmp_path / "test_schema_new.xlsx"
-    
-    # Execute
-    wb = create_sheets_from_schema(schema_file, test_path)
-    
-    # Verify
-    try:
-        # Check that all sheets from schema exist
-        for sheet_name, expected_headers in sample_schema.items():
-            assert sheet_name in wb.sheetnames
-            
-            # Check headers in each sheet
-            ws = wb[sheet_name]
-            for col_idx, header in enumerate(expected_headers, start=1):
-                assert ws.cell(row=1, column=col_idx).value == header
-    finally:
-        # Close workbook
-        wb.close()
+    wb2 = load_workbook(path)
+    assert wb2.active.cell(row=1, column=1).value == "SAVE"
+    wb2.active.cell(row=1, column=1, value="UPDATED")
+    wb2.save(path)
+    wb2.close()
 
-def test_create_sheets_from_schema_update(tmp_path, schema_file, sample_schema):
-    """Test create_sheets_from_schema updating an existing workbook"""
-    # Setup - create initial workbook with partial schema
-    test_path = tmp_path / "test_schema_update.xlsx"
-    
-    # Create a partial workbook with just Road sheet
-    wb_initial = Workbook()
-    ws = wb_initial.active
-    ws.title = "Road"
-    
-    # Add headers (intentionally different from schema)
-    initial_headers = ["ID", "Name", "Old_Field"]
-    for col_idx, header in enumerate(initial_headers, start=1):
-        ws.cell(row=1, column=col_idx, value=header)
-    
-    # Add some data
-    ws.cell(row=2, column=1, value="ROAD-001")
-    ws.cell(row=2, column=2, value="Main Street")
-    
-    # Save initial workbook
-    wb_initial.save(test_path)
-    wb_initial.close()
-    
-    # Execute - update with full schema
-    wb_updated = create_sheets_from_schema(schema_file, test_path)
-    
-    try:
-        # Verify
-        # 1. All sheets from schema should exist
-        for sheet_name in sample_schema.keys():
-            assert sheet_name in wb_updated.sheetnames
-        
-        # 2. Headers in Road sheet should be updated to match schema
-        road_ws = wb_updated["Road"]
-        for col_idx, header in enumerate(sample_schema["Road"], start=1):
-            assert road_ws.cell(row=1, column=col_idx).value == header
-        
-        # 3. Data in first sheet should still be there
-        assert road_ws.cell(row=2, column=1).value == "ROAD-001"
-        assert road_ws.cell(row=2, column=2).value == "Main Street"
-    finally:
-        # Close workbook
-        wb_updated.close()
+    wb3 = load_workbook(path)
+    assert wb3.active.cell(row=1, column=1).value == "UPDATED"
+    wb3.close()
 
-def test_create_sheets_from_schema_preserves_existing_data(tmp_path, schema_file, sample_schema):
-    """Test that create_sheets_from_schema preserves existing data when updating headers"""
-    # Setup - create initial workbook with data
-    test_path = tmp_path / "test_preserve_data.xlsx"
-    
-    # Create initial workbook with Bridge sheet and some data
-    wb_initial = Workbook()
-    ws = wb_initial.active
-    ws.title = "Bridge"
-    
-    # Add some headers (subset of schema headers)
-    initial_headers = ["ID", "Name", "Location"]
-    for col_idx, header in enumerate(initial_headers, start=1):
-        ws.cell(row=1, column=col_idx, value=header)
-    
-    # Add multiple rows of data
-    test_data = [
-        ["B-001", "North Bridge", "River Crossing"],
-        ["B-002", "South Bridge", "Highway 101"]
-    ]
-    
-    for row_idx, row_data in enumerate(test_data, start=2):
-        for col_idx, value in enumerate(row_data, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=value)
-    
-    # Save initial workbook
-    wb_initial.save(test_path)
-    wb_initial.close()
-    
-    # Execute - update with full schema
-    wb_updated = create_sheets_from_schema(schema_file, test_path)
-    
-    try:
-        # Verify
-        bridge_ws = wb_updated["Bridge"]
-        
-        # Check new headers are in place
-        for col_idx, header in enumerate(sample_schema["Bridge"], start=1):
-            assert bridge_ws.cell(row=1, column=col_idx).value == header
-        
-        # Verify original data is preserved
-        for row_idx, row_data in enumerate(test_data, start=2):
-            for col_idx, value in enumerate(row_data, start=1):
-                assert bridge_ws.cell(row=row_idx, column=col_idx).value == value
-    finally:
-        # Close workbook
-        wb_updated.close()
+# --- Updated tests for new schema-based Excel creation ---
+
+def test_create_sheets_from_schema_json(tmp_path, json_schema_file, sample_json_schema):
+    path = tmp_path / "contractors.xlsx"
+    create_sheets_from_schema(json_schema_file, path)
+    df = pd.read_excel(path, sheet_name="contractors")
+    assert list(df.columns) == list(sample_json_schema["properties"].keys())
+
+def test_create_sheets_from_schema_custom_sheet(tmp_path, json_schema_file, sample_json_schema):
+    path = tmp_path / "custom.xlsx"
+    create_sheets_from_schema(json_schema_file, path, sheet_name="MySheet")
+    df = pd.read_excel(path, sheet_name="MySheet")
+    assert list(df.columns) == list(sample_json_schema["properties"].keys())
+
+def test_create_tasks_sheet(tmp_path):
+    path = tmp_path / "tasks.xlsx"
+    create_tasks_sheet(output_path=path)
+    df = pd.read_excel(path, sheet_name="tasks")
+    assert list(df.columns) == ["Task ID", "Incident ID", "Contractor ID", "Assigned At", "Status", "Details"]
+
+
+from utils.excel_handler import create_maintenance_history_sheet
+
+@pytest.fixture
+def sample_maintenance_schema(tmp_path):
+    schema = {
+        "properties": {
+            "Record ID": {"type": "string"},
+            "Equipment ID": {"type": "string"},
+            "Maintenance Date": {"type": "string"},
+            "Technician": {"type": "string"},
+            "Notes": {"type": "string"},
+            "Cost": {"type": "number"}
+        }
+    }
+    schema_file = tmp_path / "maintenance_schema.json"
+    schema_file.write_text(json.dumps(schema))
+    return tmp_path, schema
+
+def test_create_maintenance_history_sheet_success(tmp_path, sample_maintenance_schema, monkeypatch):
+    # Arrange: write schema into a temp cwd
+    schema_dir, expected_schema = sample_maintenance_schema
+    monkeypatch.chdir(schema_dir)
+    output_path = tmp_path / "maintenance.xlsx"
+
+    # Act
+    result = create_maintenance_history_sheet(path=str(output_path))
+
+    # Assert
+    assert result is True
+    assert output_path.exists()
+    df = pd.read_excel(output_path, sheet_name="Maintenance History")
+    assert list(df.columns) == list(expected_schema["properties"].keys())
+
+def test_create_maintenance_history_sheet_missing_schema(tmp_path, monkeypatch):
+    # Arrange: no maintenance_schema.json in cwd
+    monkeypatch.chdir(tmp_path)
+    output_path = tmp_path / "maintenance.xlsx"
+
+    # Act
+    result = create_maintenance_history_sheet(path=str(output_path))
+
+    # Assert
+    assert result is False
+    # output file should not exist on failure
+    assert not output_path.exists()

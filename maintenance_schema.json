@@ -1,0 +1,41 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Maintenance Record Schema",
+    "description": "Schema for infrastructure maintenance records",
+    "type": "object",
+    "properties": {
+        "record_id": {
+            "type": "string",
+            "description": "Unique identifier for the maintenance record"
+        },
+        "asset_id": {
+            "type": "string",
+            "description": "Identifier of the asset that received maintenance"
+        },
+        "action_taken": {
+            "type": "string",
+            "enum": ["Inspection", "Repair", "Replacement"],
+            "description": "Type of maintenance action performed"
+        },
+        "performed_by": {
+            "type": "string",
+            "description": "Name or ID of the person/team who performed the maintenance"
+        },
+        "cost": {
+            "type": "number",
+            "format": "float",
+            "description": "Cost of the maintenance action in local currency"
+        },
+        "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when the maintenance was performed (YYYY-MM-DD)"
+        },
+        "notes": {
+            "type": "string",
+            "description": "Additional notes or comments about the maintenance action"
+        }
+    },
+    "required": ["record_id", "asset_id", "action_taken", "performed_by", "date"],
+    "additionalProperties": false
+}

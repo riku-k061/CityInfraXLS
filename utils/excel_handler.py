@@ -3,7 +3,9 @@
 import os
 import json
 import logging
+import pandas as pd
 from openpyxl import Workbook, load_workbook as openpyxl_load
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Configure basic logging
 logging.basicConfig(
@@ -81,62 +83,96 @@ def init_workbook(path, headers):
     
     return wb
 
-def create_sheets_from_schema(schema_path, workbook_path):
+def create_sheets_from_schema(schema_path, output_path, sheet_name=None):
     """
-    Ensure the workbook has all sheets defined in the schema with correct headers.
+    Create Excel sheets based on a JSON schema.
     
     Args:
         schema_path (str): Path to the JSON schema file
-        workbook_path (str): Path to the Excel workbook file
+        output_path (str): Path to save the Excel file
+        sheet_name (str, optional): Name of the sheet. Defaults to None.
+    """
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Load schema
+    with open(schema_path, 'r') as f:
+        schema = json.load(f)
+    
+    if not sheet_name:
+        # Convert output_path to sheet_name (e.g., data/assets.xlsx -> assets)
+        sheet_name = os.path.basename(output_path).split('.')[0]
+    
+    # Get properties from schema
+    properties = schema.get('properties', {})
+    
+    # Create DataFrame with columns from schema properties
+    df = pd.DataFrame(columns=list(properties.keys()))
+    
+    # Save empty DataFrame to Excel
+    df.to_excel(output_path, index=False, sheet_name=sheet_name)
+    print(f"Created {output_path} with columns: {', '.join(df.columns)}")
+
+def create_tasks_sheet(output_path="data/tasks.xlsx", sheet_name="tasks"):
+    """
+    Create a tasks Excel sheet with predefined columns.
+    
+    Args:
+        output_path (str, optional): Path to save the Excel file. Defaults to "data/tasks.xlsx".
+        sheet_name (str, optional): Name of the sheet. Defaults to "tasks".
+    """
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Define columns for tasks sheet
+    columns = ["Task ID", "Incident ID", "Contractor ID", "Assigned At", "Status", "Details"]
+    
+    # Create DataFrame with defined columns
+    df = pd.DataFrame(columns=columns)
+    
+    # Save empty DataFrame to Excel
+    df.to_excel(output_path, index=False, sheet_name=sheet_name)
+    print(f"Created {output_path} with columns: {', '.join(columns)}")
+
+def create_maintenance_history_sheet(path='data/maintenance_history.xlsx'):
+    """
+    Create a new maintenance history Excel sheet with headers based on the maintenance schema.
+    
+    Args:
+        path (str): Path to the Excel file to create or update
         
     Returns:
-        openpyxl.Workbook: The updated workbook
+        bool: True if successful, False otherwise
     """
-    # Load schema
-    logger.info(f"Loading asset schema from {schema_path}")
     try:
-        with open(schema_path, 'r') as f:
-            schema = json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load schema from {schema_path}: {str(e)}")
-        raise
-    
-    # Load or create workbook
-    if os.path.exists(workbook_path):
-        wb = load_workbook(workbook_path)
-    else:
-        logger.info(f"Creating new workbook at {workbook_path}")
-        wb = Workbook()
-        # Remove the default sheet (will add sheets from schema)
-        default_sheet = wb.active
-        wb.remove(default_sheet)
-    
-    # Process each asset type in the schema
-    for asset_type, headers in schema.items():
-        logger.info(f"Processing sheet for asset type: {asset_type}")
+        # Load the maintenance schema to get the headers
+        with open('maintenance_schema.json', 'r') as schema_file:
+            schema = json.load(schema_file)
         
-        # Check if sheet exists
-        if asset_type in wb.sheetnames:
-            ws = wb[asset_type]
-            
-            # Check if headers match
-            existing_headers = [cell.value for cell in ws[1]]
-            
-            if existing_headers != headers:
-                logger.info(f"Headers for {asset_type} don't match schema, updating headers")
-                # Clear the first row and update with schema headers
-                for col_idx, header in enumerate(headers, start=1):
-                    ws.cell(row=1, column=col_idx, value=header)
-        else:
-            # Create new sheet with headers
-            logger.info(f"Creating new sheet for {asset_type}")
-            ws = wb.create_sheet(asset_type)
-            
-            # Add headers
-            for col_idx, header in enumerate(headers, start=1):
-                ws.cell(row=1, column=col_idx, value=header)
-    
-    # Save the updated workbook
-    save_workbook(wb, workbook_path)
-    
-    return wb
+        # Extract the properties to use as headers
+        headers = list(schema['properties'].keys())
+        
+        # Create a new DataFrame with the headers but no data
+        df = pd.DataFrame(columns=headers)
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Create a new workbook
+        wb = Workbook()
+        # Get the active worksheet and rename it
+        ws = wb.active
+        ws.title = "Maintenance History"
+        
+        # Add headers to the sheet
+        for row in dataframe_to_rows(df, index=False, header=True):
+            ws.append(row)
+        
+        # Save the workbook
+        wb.save(path)
+        print(f"Successfully created maintenance history sheet at {path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error creating maintenance history sheet: {e}")
+        return False

@@ -2,3 +2,7 @@ openpyxl
 pandas
 tabulate
 pytest
+matplotlib
+numpy
+jsonschema
+tabulate
