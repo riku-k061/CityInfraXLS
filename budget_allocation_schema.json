@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Budget Allocation Schema",
+  "description": "Schema for budget allocations in CityInfraXLS",
+  "type": "object",
+  "properties": {
+    "department": {
+      "type": "string",
+      "description": "City department responsible for the budget",
+      "minLength": 2,
+      "maxLength": 100
+    },
+    "fiscal_year": {
+      "type": "string",
+      "description": "Fiscal year in YYYY-YYYY format",
+      "pattern": "^\\d{4}-\\d{4}$"
+    },
+    "allocated_amount": {
+      "type": "number",
+      "description": "Total allocated budget amount",
+      "minimum": 0
+    },
+    "allocation_date": {
+      "type": "string",
+      "description": "Date when budget was allocated",
+      "format": "date"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique identifier for the project",
+      "pattern": "^PRJ-[0-9]{6}$"
+    },
+    "category": {
+      "type": "string",
+      "description": "Budget category",
+      "enum": ["maintenance", "new_construction", "renovation", "emergency", "planning", "other"]
+    },
+    "status": {
+      "type": "string",
+      "description": "Current status of budget allocation",
+      "enum": ["proposed", "approved", "allocated", "spent", "closed"]
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the budget allocation",
+      "maxLength": 500
+    },
+    "approving_authority": {
+      "type": "string",
+      "description": "Name or ID of the authority that approved the budget",
+      "maxLength": 100
+    }
+  },
+  "required": ["department", "fiscal_year", "allocated_amount", "allocation_date", "project_id", "category", "status"],
+  "additionalProperties": false
+}
