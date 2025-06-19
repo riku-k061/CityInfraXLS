@@ -6,3 +6,4 @@ matplotlib
 numpy
 jsonschema
 tabulate
+requests
