@@ -1,0 +1,50 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Complaint",
+    "description": "Schema for infrastructure-related complaints from citizens",
+    "type": "object",
+    "required": ["complaint_id", "reporter", "asset_location", "description", "department", "status", "rating", "created_at"],
+    "properties": {
+        "complaint_id": {
+            "type": "string",
+            "description": "Unique identifier for the complaint"
+        },
+        "reporter": {
+            "type": "string",
+            "description": "Name of the person reporting the complaint"
+        },
+        "asset_location": {
+            "type": "string",
+            "description": "Asset ID or location description where the issue was reported"
+        },
+        "description": {
+            "type": "string",
+            "description": "Detailed description of the complaint"
+        },
+        "department": {
+            "type": "string",
+            "description": "City department responsible for addressing the complaint"
+        },
+        "status": {
+            "type": "string",
+            "enum": ["Open", "In Progress", "Closed"],
+            "description": "Current status of the complaint"
+        },
+        "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Priority rating of the complaint (1-5, with 5 being highest priority)"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date and time when the complaint was filed"
+        },
+        "closed_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Date and time when the complaint was closed (null if not closed)"
+        }
+    }
+}
