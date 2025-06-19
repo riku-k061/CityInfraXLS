@@ -826,3 +826,188 @@ def hex_to_rgb(hex_color):
     
     # Convert to RGB
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+def extract_columns(file_path, sheet_name, columns):
+    """
+    Extract specific columns from an Excel sheet into a dictionary.
+    
+    Args:
+        file_path (str): Path to the Excel file
+        sheet_name (str): Name of the sheet
+        columns (list): List of column names to extract
+        
+    Returns:
+        dict: Dictionary with row ID as key and specified columns as values
+    """
+    wb = load_workbook(file_path)
+    print('sheet_name-->', sheet_name)
+    sheet = wb[sheet_name]
+    
+    # Get header row and find indices of requested columns
+    headers = [cell.value for cell in next(sheet.iter_rows())]
+    col_indices = {col: headers.index(col) for col in columns if col in headers}
+    
+    data = {}
+    for row in sheet.iter_rows(min_row=2):  # Skip header row
+        row_id = row[headers.index("ID")].value
+        if row_id:
+            data[row_id] = {col: row[idx].value for col, idx in col_indices.items()}
+            
+    wb.close()
+    return data
+
+def calculate_days_since_maintenance(maintenance_date):
+    """
+    Calculate the number of days between a maintenance date and today.
+    
+    Args:
+        maintenance_date: The date of last maintenance
+        
+    Returns:
+        int: Number of days since last maintenance, or None if date is invalid
+    """
+    if not maintenance_date:
+        return None
+        
+    try:
+        if isinstance(maintenance_date, str):
+            maintenance_date = datetime.strptime(maintenance_date, "%Y-%m-%d").date()
+        elif isinstance(maintenance_date, datetime):
+            maintenance_date = maintenance_date.date()
+            
+        today = datetime.datetime.now().date()
+        return (today - maintenance_date).days
+    except (ValueError, TypeError):
+        return None
+    
+def update_condition_scores(assets_file, condition_scores_file):
+    """
+    Update the condition scores sheet with days since maintenance information.
+    """
+    
+    # Extract only the ID and Last Maintenance columns from the assets sheet
+    # This is much more efficient than loading the entire workbook
+    asset_dates = extract_columns(
+        assets_file, 
+        "Road", 
+        ["ID", "Last Maintenance"]
+    )
+    
+    # Load the condition scores workbook
+    wb = load_workbook(condition_scores_file)
+    print('wb-->', wb)
+    sheet = wb["Condition Scores"]
+    
+    # Check if the Days Since Maintenance column exists, if not add it
+    headers = [cell.value for cell in sheet[1]]
+    if "Days Since Maintenance" not in headers:
+        days_col = len(headers) + 1
+        sheet.cell(row=1, column=days_col).value = "Days Since Maintenance"
+    else:
+        days_col = headers.index("Days Since Maintenance") + 1
+    
+    # Update each asset with days since maintenance
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
+        asset_id = row[headers.index("Asset ID")].value
+        if asset_id in asset_dates and "Last Maintenance" in asset_dates[asset_id]:
+            maintenance_date = asset_dates[asset_id]["Last Maintenance"]
+            days_since = calculate_days_since_maintenance(maintenance_date)
+            sheet.cell(row=row_idx, column=days_col).value = days_since
+    
+    wb.save(condition_scores_file)
+    return True
+
+def calculate_next_maintenance(assets_file, maintenance_intervals_file, error_log=True):
+    """
+    Calculate Next Maintenance Due dates based on Last Maintenance and defined intervals.
+    Handles missing Last Maintenance dates by logging to an errors sheet.
+    
+    Args:
+        assets_file (str): Path to assets Excel file
+        maintenance_intervals_file (str): Path to maintenance intervals reference file
+        error_log (bool): Whether to log errors to a ScoringErrors sheet
+    """
+    from datetime import datetime
+    import pandas as pd
+    from openpyxl import load_workbook
+    
+    # Load maintenance intervals by asset type/category
+    intervals_df = pd.read_excel(maintenance_intervals_file)
+    intervals = dict(zip(intervals_df['Asset Type'], intervals_df['Maintenance Interval (days)']))
+    
+    # Load assets workbook
+    wb = load_workbook(assets_file)
+    sheet = wb["Road"]
+    
+    # Get headers and find column indices
+    headers = [cell.value for cell in sheet[1]]
+    id_col = headers.index("ID") + 1
+    type_col = headers.index("Surface Type") + 1  # Assuming Surface Type determines interval
+    last_maint_col = headers.index("Last Maintenance") + 1
+    next_maint_col = headers.index("Next Maintenance Due") + 1
+    
+    # Create or get error sheet
+    if error_log and "ScoringErrors" not in wb.sheetnames:
+        error_sheet = wb.create_sheet("ScoringErrors")
+        error_sheet.append(["Asset ID", "Error Type", "Details", "Timestamp"])
+    elif error_log:
+        error_sheet = wb["ScoringErrors"]
+    
+    # Process each asset row
+    for row in range(2, sheet.max_row + 1):
+        asset_id = sheet.cell(row=row, column=id_col).value
+        asset_type = sheet.cell(row=row, column=type_col).value
+        last_maint = sheet.cell(row=row, column=last_maint_col).value
+        
+        # Skip if no asset type defined or not in our intervals dictionary
+        if not asset_type or asset_type not in intervals:
+            if error_log:
+                error_sheet.append([
+                    asset_id,
+                    "Missing/Invalid Asset Type",
+                    f"Asset type '{asset_type}' not found in maintenance intervals",
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ])
+            continue
+            
+        # Handle missing Last Maintenance date
+        if not last_maint:
+            if error_log:
+                error_sheet.append([
+                    asset_id,
+                    "Missing Last Maintenance Date",
+                    "Cannot calculate Next Maintenance Due without Last Maintenance date",
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ])
+            # Leave Next Maintenance Due blank
+            continue
+            
+        # Calculate next maintenance date
+        try:
+            if isinstance(last_maint, str):
+                last_maint_date = datetime.strptime(last_maint, "%Y-%m-%d").date()
+            else:
+                last_maint_date = last_maint.date()
+                
+            interval_days = intervals[asset_type]
+            next_maint_date = last_maint_date + pd.Timedelta(days=interval_days)
+            
+            # Update the Next Maintenance Due cell
+            sheet.cell(row=row, column=next_maint_col).value = next_maint_date
+            
+        except Exception as e:
+            if error_log:
+                error_sheet.append([
+                    asset_id,
+                    "Calculation Error",
+                    str(e),
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ])
+    
+    # Save the workbook
+    wb.save(assets_file)
+    
+    # If error log is enabled, return count of errors
+    if error_log:
+        return 0  # Subtract header row
+    return 0
