@@ -1,0 +1,21 @@
+{
+  "validation": {
+    "status": "error",
+    "message": "Exception during validation: GeodataHandler.__init__() takes 1 positional argument but 2 were given",
+    "errors": [
+      "GeodataHandler.__init__() takes 1 positional argument but 2 were given"
+    ]
+  },
+  "geocoding": {},
+  "boundary_check": {},
+  "geojson_export": {},
+  "asset_sync": {},
+  "overall": {
+    "start_time": "2025-06-20T04:23:07.950205",
+    "end_time": "2025-06-20T04:23:08.117534",
+    "duration_seconds": 0.167329,
+    "total_assets_processed": 0,
+    "successfully_enriched": 0,
+    "errors": []
+  }
+}
