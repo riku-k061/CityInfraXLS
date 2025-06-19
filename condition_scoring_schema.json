@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Asset Condition Scoring Schema",
+  "description": "Schema for defining asset condition scoring parameters and weights",
+  "type": "object",
+  "required": ["scoring_parameters", "scoring_weights", "scoring_thresholds"],
+  "properties": {
+    "scoring_parameters": {
+      "type": "object",
+      "required": ["age", "last_maintenance", "incident_count", "inspection_rating"],
+      "properties": {
+        "age": {
+          "type": "object",
+          "required": ["type", "unit", "description"],
+          "properties": {
+            "type": "number",
+            "unit": {
+              "type": "string",
+              "enum": ["years", "months", "days"]
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "last_maintenance": {
+          "type": "object",
+          "required": ["type", "unit", "description"],
+          "properties": {
+            "type": "number",
+            "unit": {
+              "type": "string",
+              "enum": ["years", "months", "days"]
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "incident_count": {
+          "type": "object",
+          "required": ["type", "timeframe", "description"],
+          "properties": {
+            "type": "integer",
+            "timeframe": {
+              "type": "string",
+              "enum": ["lifetime", "yearly", "monthly"]
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "inspection_rating": {
+          "type": "object",
+          "required": ["type", "scale", "description"],
+          "properties": {
+            "type": "number",
+            "scale": {
+              "type": "object",
+              "required": ["min", "max"],
+              "properties": {
+                "min": {"type": "number"},
+                "max": {"type": "number"}
+              }
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "scoring_weights": {
+      "type": "object",
+      "required": ["age_weight", "maintenance_weight", "incident_weight", "inspection_weight"],
+      "properties": {
+        "age_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight factor for asset age in condition score calculation"
+        },
+        "maintenance_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight factor for last maintenance in condition score calculation"
+        },
+        "incident_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight factor for incident count in condition score calculation"
+        },
+        "inspection_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight factor for inspection rating in condition score calculation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scoring_thresholds": {
+      "type": "object",
+      "required": ["excellent", "good", "fair", "poor", "critical"],
+      "properties": {
+        "excellent": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          }
+        },
+        "good": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          }
+        },
+        "fair": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          }
+        },
+        "poor": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          }
+        },
+        "critical": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          }
+        }
+      }
+    },
+    "scoring_formula": {
+      "type": "string",
+      "description": "Formula used to calculate the condition score using the parameters and weights"
+    }
+  }
+}

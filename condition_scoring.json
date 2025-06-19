@@ -1,0 +1,41 @@
+{
+  "scoring_parameters": {
+    "age": {
+      "type": 1.0,
+      "unit": "years",
+      "description": "Asset age in years since installation"
+    },
+    "last_maintenance": {
+      "type": 180,
+      "unit": "days",
+      "description": "Number of days since last maintenance"
+    },
+    "incident_count": {
+      "type": 5,
+      "timeframe": "yearly",
+      "description": "Number of incidents in the past year"
+    },
+    "inspection_rating": {
+      "type": 8.5,
+      "scale": {
+        "min": 0,
+        "max": 10
+      },
+      "description": "Most recent inspection score on a 0–10 scale"
+    }
+  },
+  "scoring_weights": {
+    "age_weight": 0.3,
+    "maintenance_weight": 0.3,
+    "incident_weight": 0.2,
+    "inspection_weight": 0.2
+  },
+  "scoring_thresholds": {
+    "excellent": { "min": 90,   "max": 100 },
+    "good":      { "min": 70,   "max": 89.9 },
+    "fair":      { "min": 50,   "max": 69.9 },
+    "poor":      { "min": 30,   "max": 49.9 },
+    "critical":  { "min": 0,    "max": 29.9 }
+  },
+  "scoring_formula": "age_score * age_weight + maintenance_score * maintenance_weight + incident_score * incident_weight + inspection_score * inspection_weight"
+}
