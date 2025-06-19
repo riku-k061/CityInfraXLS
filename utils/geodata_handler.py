@@ -1,4 +1,4 @@
-# geodata_handler.py
+# utils/geodata_handler.py
 import json
 import os
 import pandas as pd
@@ -116,7 +116,7 @@ class GeodataHandler:
                 df.loc[df['asset_id'] == asset_data['asset_id'], key] = value
         else:
             # Add new record
-            df = df.append(asset_data, ignore_index=True)
+            df = df._append(asset_data, ignore_index=True)
         
         # Save back to Excel
         with pd.ExcelWriter(self.data_path) as writer:
