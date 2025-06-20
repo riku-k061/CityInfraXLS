@@ -1,6 +1,6 @@
-# 🧭 Travel Service Backend API (FastAPI + Mock JSON)
+# 🏙️ CityInfraXLS – Urban Infrastructure Maintenance & Analytics System
 
-A mock backend travel management system built using **FastAPI**. Designed for educational, prototyping, and early-stage development purposes, this system operates entirely on local JSON files — no database required.
+A standalone Python application for city management teams to track, log, analyze, and report on infrastructure maintenance operations using Excel files as the data backbone. Supports roads, bridges, streetlights, public parks, budgeting, contractor performance, predictive maintenance, complaint resolution, condition scoring, and geospatial enrichment — all through a smart Excel-driven interface.
 
 ---
 
