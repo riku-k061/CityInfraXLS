@@ -6,6 +6,7 @@ import logging
 import pandas as pd
 from openpyxl import Workbook, load_workbook as openpyxl_load
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils.exceptions import InvalidFileException
 
 # Configure basic logging
 logging.basicConfig(
@@ -175,4 +176,72 @@ def create_maintenance_history_sheet(path='data/maintenance_history.xlsx'):
         
     except Exception as e:
         print(f"Error creating maintenance history sheet: {e}")
+        return False
+    
+def create_complaint_sheet(path):
+    """
+    Creates a complaint sheet at the specified path if it doesn't exist already.
+    If the file exists but doesn't have a Complaints sheet, adds the sheet.
+    Ensures the sheet has the correct headers based on the complaint schema.
+    
+    Args:
+        path (str): Path to the Excel file
+    
+    Returns:
+        bool: True if created or already exists with correct structure, False otherwise
+    """
+    # Load complaint schema
+    with open('complaint_schema.json', 'r') as schema_file:
+        schema = json.load(schema_file)
+    
+    # Extract headers from schema properties
+    headers = list(schema['properties'].keys())
+    
+    # If file doesn't exist, create new file with headers
+    if not os.path.exists(path):
+        df = pd.DataFrame(columns=headers)
+        df.to_excel(path, sheet_name='Complaints', index=False)
+        return True
+    
+    try:
+        # Check if Complaints sheet exists
+        wb = load_workbook(path)
+        if 'Complaints' not in wb.sheetnames:
+            # If file exists but Complaints sheet doesn't, create it
+            with pd.ExcelWriter(path, engine='openpyxl', mode='a') as writer:
+                df = pd.DataFrame(columns=headers)
+                df.to_excel(writer, sheet_name='Complaints', index=False)
+        else:
+            # If sheet exists, verify headers
+            df = pd.read_excel(path, sheet_name='Complaints')
+            existing_headers = df.columns.tolist()
+            
+            # Check if headers match
+            if set(existing_headers) != set(headers):
+                # Create a backup
+                backup_path = path.replace('.xlsx', '_backup.xlsx')
+                wb.save(backup_path)
+                
+                # Recreate with correct headers, preserving data for matching columns
+                with pd.ExcelWriter(path, engine='openpyxl', mode='a') as writer:
+                    new_df = pd.DataFrame(columns=headers)
+                    
+                    # Copy data for columns that exist in both
+                    for col in set(existing_headers).intersection(set(headers)):
+                        if len(df) > 0:
+                            new_df[col] = df[col]
+                            
+                    # Delete the original sheet
+                    wb = load_workbook(path)
+                    if 'Complaints' in wb.sheetnames:
+                        wb.remove(wb['Complaints'])
+                        wb.save(path)
+                    
+                    # Write the corrected sheet
+                    new_df.to_excel(writer, sheet_name='Complaints', index=False)
+        
+        return True
+    
+    except (InvalidFileException, Exception) as e:
+        print(f"Error creating complaint sheet: {str(e)}")
         return False
